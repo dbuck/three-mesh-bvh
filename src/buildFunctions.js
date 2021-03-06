@@ -1,4 +1,4 @@
-import { Box3, BufferAttribute } from 'three';
+import { Box3, BufferAttribute, Sphere } from 'three';
 import MeshBVHNode from './MeshBVHNode.js';
 import { arrayToBox, boxToArray, getLongestEdgeIndex } from './Utils/ArrayBoxUtilities.js';
 import { CENTER, AVERAGE, SAH } from './Constants.js';
@@ -498,6 +498,34 @@ function computeTriangleBounds( geo ) {
 
 }
 
+/**
+ * if the geometry doesn't have a bounding box, then let's politely populate it using
+ * the work we did to determine the BVH root bounds, so renderer.project doesn't regen it from the attributes
+ */
+export function geometryBoundsFromRoots( geo, roots ) {
+
+	if ( geo.boundingBox == null ) {
+
+		const rootBox = new Box3();
+		geo.boundingBox = new Box3();
+
+		for ( let root of roots ) {
+
+			geo.boundingBox.union( arrayToBox( root.boundingData, rootBox ) );
+
+		}
+
+	}
+
+	// fill in the bounding sphere from the box
+	if ( geo.boundingSphere == null ) {
+
+		geo.boundingSphere = geo.boundingBox.getBoundingSphere( new Sphere() );
+
+	}
+
+}
+
 export function buildTree( geo, options ) {
 
 	// either recursively splits the given node, creating left and right subtrees for it, or makes it a leaf node,
@@ -654,20 +682,7 @@ export function buildTree( geo, options ) {
 
 	}
 
-	// if the geometry doesn't have a bounding box, then let's politely populate it using
-	// the work we did to determine the BVH root bounds
-	if ( geo.boundingBox == null ) {
-
-		const rootBox = new Box3();
-		geo.boundingBox = new Box3();
-
-		for ( let root of roots ) {
-
-			geo.boundingBox.union( arrayToBox( root.boundingData, rootBox ) );
-
-		}
-
-	}
+	geometryBoundsFromRoots( geo, roots );
 
 	return roots;
 

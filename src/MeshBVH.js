@@ -1,6 +1,7 @@
-import { Vector3, BufferAttribute } from 'three';
+import { Vector3, BufferAttribute, Box3, Sphere } from 'three';
 import { CENTER } from './Constants.js';
 import { buildTree } from './buildFunctions.js';
+import { arrayToBox } from './Utils/ArrayBoxUtilities.js';
 import { OrientedBox } from './Utils/OrientedBox.js';
 import { SeparatingAxisTriangle } from './Utils/SeparatingAxisTriangle.js';
 import { setTriangle } from './Utils/TriangleUtils.js';
@@ -149,7 +150,7 @@ export default class MeshBVH {
 
 	}
 
-	static deserialize( data, geometry, setIndex = true ) {
+	static deserialize( data, geometry, setIndex = true, setBounds = false ) {
 
 		const { index, roots } = data;
 		const bvh = new MeshBVH( geometry, { [ SKIP_GENERATION ]: true } );
@@ -170,6 +171,35 @@ export default class MeshBVH {
 				indexAttribute.needsUpdate = true;
 
 			}
+
+		}
+
+		// similar to the end of buildTree, we can fill in details of the
+		// boundingBox/boundingSphere from the loaded bvh data if they did not already exist
+		// otherwise it gets generated from the attributes on first render frame
+		if ( setBounds && geometry.boundingBox == null ) {
+
+			const rootBox = new Box3();
+			geometry.boundingBox = new Box3();
+
+			bvh.traverse( ( depth, isLeaf, boundingData ) => {
+
+				// when should we actually stop traversal?
+				if ( depth >= 1 ) return true;
+
+				if ( ! isLeaf ) {
+
+					geometry.boundingBox.union( arrayToBox( boundingData, rootBox ) );
+
+				}
+
+			} );
+
+		}
+
+		if ( setBounds && geometry.boundingSphere == null ) {
+
+			geometry.boundingSphere = geometry.boundingBox.getBoundingSphere( new Sphere() );
 
 		}
 
