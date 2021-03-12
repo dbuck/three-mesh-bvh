@@ -16,7 +16,7 @@ export class PooledBVHGenerate {
 	constructor( poolOptions = { name: 'bvh' } ) {
 
 		this.pool = Pool( () => spawn( new Worker( './pooledGenerate.worker.js' ) ), poolOptions );
-		this.logging = true;
+		this.logging = false;
 		this.jobIndex = 0;
 
 	}
@@ -31,7 +31,7 @@ export class PooledBVHGenerate {
 
 		return this.pool.queue( async generateBvh => {
 
-			if ( logging ) console.time( 'WorkerPool:makeTransferrables' + jobIndex );
+			if ( logging ) console.time( 'BVHPool: generateBvh ' + jobIndex );
 
 			const index = geometry.index ? geometry.index.array : null;
 			const position = geometry.attributes.position.array;
@@ -48,18 +48,13 @@ export class PooledBVHGenerate {
 
 			}
 
-			const dataTransfer = Transfer( { index, position, options, logging }, transferrables.map( arr => arr.buffer ) );
-			if ( logging ) console.timeEnd( 'WorkerPool:makeTransferrables' + jobIndex );
-			if ( logging ) console.time( 'WorkerPool:generateBvh' + jobIndex );
-			const result = await generateBvh( dataTransfer );
-			if ( logging ) console.timeEnd( 'WorkerPool:generateBvh' + jobIndex );
+			const result = await generateBvh( Transfer( { index, position, options }, transferrables.map( arr => arr.buffer ) ) );
+
 			if ( result.error ) {
 
 				return new Error( result.error );
 
 			}
-
-			if ( this.logging ) console.time( 'WorkerPool:deserialize' + jobIndex );
 
 			// Load the bvh into the geometry, and re-attach the arrays now that ownership has been transferred back to the main thread.
 			const bvh = MeshBVH.deserialize( result.serialized, geometry, false, true );
@@ -71,7 +66,7 @@ export class PooledBVHGenerate {
 
 			}
 
-			if ( logging ) console.timeEnd( 'WorkerPool:deserialize' + jobIndex );
+			if ( logging ) console.timeEnd( 'BVHPool: generateBvh ' + jobIndex );
 
 			return bvh;
 
