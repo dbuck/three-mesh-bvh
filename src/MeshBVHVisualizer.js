@@ -1,4 +1,4 @@
-import { LineBasicMaterial, Box3Helper, Box3, Group, LineSegments } from 'three';
+import { LineBasicMaterial, Box3Helper, Box3, Group, LineSegments, Mesh } from 'three';
 import { arrayToBox } from './Utils/ArrayBoxUtilities.js';
 
 const wiremat = new LineBasicMaterial( { color: 0x00FF88, transparent: true, opacity: 0.3 } );
@@ -17,7 +17,22 @@ class MeshBVHRootVisualizer extends Group {
 		this._boundsTree = null;
 		this._group = group;
 
-		this.update();
+		this.mat = wiremat;
+		this.geo = boxGeom;
+
+		// this.update();
+
+	}
+
+	setBaseGeometry( geo ) {
+
+		this.geo = geo;
+
+	}
+
+	setMaterial( mat ) {
+
+		this.mat = mat;
 
 	}
 
@@ -45,7 +60,10 @@ class MeshBVHRootVisualizer extends Group {
 					let m = requiredChildren < this.children.length ? this.children[ requiredChildren ] : null;
 					if ( ! m ) {
 
-						m = new LineSegments( boxGeom, wiremat );
+						// TODO - allow custom geo
+						m = this.mat instanceof LineBasicMaterial ?
+							new LineSegments( this.geo, this.mat ) :
+							new Mesh( this.geo, this.mat );
 						m.raycast = () => [];
 						this.add( m );
 
@@ -54,6 +72,8 @@ class MeshBVHRootVisualizer extends Group {
 					requiredChildren ++;
 					arrayToBox( boundingData, boundingBox );
 					boundingBox.getCenter( m.position );
+
+					// TODO - instancing
 					m.scale.subVectors( boundingBox.max, boundingBox.min ).multiplyScalar( 0.5 );
 
 					if ( m.scale.x === 0 ) m.scale.x = Number.EPSILON;
@@ -82,7 +102,22 @@ class MeshBVHVisualizer extends Group {
 		this.mesh = mesh;
 		this._roots = [];
 
-		this.update();
+		this.mat = wiremat;
+		this.geo = boxGeom;
+
+		// this.update();
+
+	}
+
+	setMaterial( mat ) {
+
+		this.mat = mat;
+
+	}
+
+	setBaseGeometry( geo ) {
+
+		this.geo = geo;
 
 	}
 
@@ -101,6 +136,9 @@ class MeshBVHVisualizer extends Group {
 			if ( i >= this._roots.length ) {
 
 				const root = new MeshBVHRootVisualizer( this.mesh, this.depth, i );
+				root.setMaterial( this.mat );
+				root.setBaseGeometry( this.geo );
+				root.update();
 				this.add( root );
 				this._roots.push( root );
 
@@ -108,6 +146,8 @@ class MeshBVHVisualizer extends Group {
 
 				let root = this._roots[ i ];
 				root.depth = this.depth;
+				root.setMaterial( this.mat );
+				root.setBaseGeometry( this.geo );
 				root.update();
 
 			}
